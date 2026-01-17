@@ -33,10 +33,12 @@ async fn main() -> std::io::Result<()> {
     info!("Starting server at http://{}", args.server.addr);
 
     let pool_data = web::Data::new(redis_pool);
+    let app_args_data = web::Data::new(args.clone());
 
     HttpServer::new(move || {
         App::new()
             .app_data(pool_data.clone())
+            .app_data(app_args_data.clone())
             .wrap(Logger::default())
             .configure(routes::config)
     })

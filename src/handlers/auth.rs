@@ -6,8 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 #[post("/auth/cli/start")]
-pub async fn
-auth_cli_start(
+pub async fn auth_cli_start(
     payload: web::Json<CliAuthStartRequest>,
     redis_pool: web::Data<crate::db::RedisPool>,
     config: web::Data<AppArgs>,

@@ -136,11 +136,11 @@ pub async fn info() -> impl Responder {
                     <span class="badge badge-db">Redis + BB8</span>
                 </div>
             </div>
-            
+
             <div class="content">
                 <div class="info-section">
                     <h2>📡 Available APIs</h2>
-                    
+
                     <div class="api-card">
                         <div class="endpoint">GET /</div>
                         <div class="description">
@@ -149,7 +149,7 @@ pub async fn info() -> impl Responder {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="info-section">
                     <h2>🔧 Technologies</h2>
                     <div class="api-card">
@@ -162,7 +162,7 @@ pub async fn info() -> impl Responder {
                     </div>
                 </div>
             </div>
-            
+
             <div class="footer">
                 <p>Powered by DPAAS | <a href="https://dpaasglint.com/" target="_blank" style="color: #667eea; text-decoration: none;">DPAAS</a></p>
             </div>
