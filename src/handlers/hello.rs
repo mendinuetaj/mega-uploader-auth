@@ -4,13 +4,13 @@ use log::{error, info};
 
 #[get("/")]
 pub async fn hello(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
-    info!("Procesando solicitud en la ruta raíz");
+    info!("Processing request on root path");
 
-    // Ejemplo de uso de Redis: Guardar y obtener una clave
-    match db::set_key(&redis_pool, "ultima_visita", "ahora").await {
-        Ok(_) => info!("Clave 'ultima_visita' actualizada en Redis"),
-        Err(e) => error!("Error escribiendo en Redis: {}", e),
+    // Example of Redis usage: Set and get a key
+    match db::set_key(&redis_pool, "last_visit", "now").await {
+        Ok(_) => info!("Key 'last_visit' updated in Redis"),
+        Err(e) => error!("Error writing to Redis: {}", e),
     }
 
-    HttpResponse::Ok().body("¡Hola desde Actix Web con Redis!")
+    HttpResponse::Ok().body("Hello from Actix Web with Redis!")
 }

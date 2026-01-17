@@ -14,7 +14,7 @@ async fn get_conn(
     pool: &RedisPool,
 ) -> Result<PooledConnection<'_, RedisConnectionManager>, RedisError> {
     pool.get().await.map_err(|e| {
-        log::error!("Error obteniendo conexión de Redis: {}", e);
+        log::error!("Error obtaining Redis connection: {}", e);
         RedisError::from(std::io::Error::new(std::io::ErrorKind::Other, format!("BB8 Pool Error: {}", e)))
     })
 }

@@ -9,27 +9,27 @@ mod routes;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Inicializar el logger
+    // Initialize the logger
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    // Parsear argumentos de CLI o Variables de Entorno
+    // Parse CLI arguments or Environment Variables
     let args = config::Args::parse();
 
-    info!("Conectando a Redis en {}", args.redis_url);
+    info!("Connecting to Redis at {}", args.redis_url);
 
-    // Crear el pool de conexiones Redis
+    // Create the Redis connection pool
     let redis_pool = match db::create_pool(&args.redis_url).await {
         Ok(pool) => {
-            info!("Pool de Redis creado con éxito");
+            info!("Redis pool created successfully");
             pool
         }
         Err(e) => {
-            error!("No se pudo conectar a Redis: {}", e);
+            error!("Could not connect to Redis: {}", e);
             std::process::exit(1);
         }
     };
 
-    info!("Iniciando servidor en http://{}", args.server_addr);
+    info!("Starting server at http://{}", args.server_addr);
 
     let pool_data = web::Data::new(redis_pool);
 
