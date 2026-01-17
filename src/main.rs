@@ -1,7 +1,20 @@
 use actix_web::{get, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
+use clap::Parser;
 use log::{error, info};
 
 mod db;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// URL de conexión a Redis
+    #[arg(short, long, env = "REDIS_URL", default_value = "redis://127.0.0.1:6379")]
+    redis_url: String,
+
+    /// Dirección del servidor HTTP
+    #[arg(short, long, env = "SERVER_ADDR", default_value = "127.0.0.1:8080")]
+    server_addr: String,
+}
 
 #[get("/")]
 async fn hello(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
@@ -21,12 +34,13 @@ async fn main() -> std::io::Result<()> {
     // Inicializar el logger
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    // Datos de conexión (esto podría venir de variables de entorno)
-    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
-    
-    info!("Conectando a Redis en {}", redis_url);
-    
-    let redis_pool = match db::create_pool(&redis_url).await {
+    // Parsear argumentos de CLI o Variables de Entorno
+    let args = Args::parse();
+
+    info!("Conectando a Redis en {}", args.redis_url);
+
+    // Crear el pool de conexiones Redis
+    let redis_pool = match db::create_pool(&args.redis_url).await {
         Ok(pool) => {
             info!("Pool de Redis creado con éxito");
             pool
@@ -37,7 +51,7 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    info!("Iniciando servidor en http://127.0.0.1:8080");
+    info!("Iniciando servidor en http://{}", args.server_addr);
 
     let pool_data = web::Data::new(redis_pool);
 
@@ -47,7 +61,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .service(hello)
     })
-    .bind("127.0.0.1:8080")?
-    .run()
-    .await
+        .bind(&args.server_addr)?
+        .run()
+        .await
 }
