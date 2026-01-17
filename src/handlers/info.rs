@@ -1,25 +1,29 @@
-use crate::db;
-use actix_web::{get, web, HttpResponse, Responder};
-use log::{error, info};
+use actix_web::{get, HttpResponse, Responder};
+use log::info;
 
 #[get("/")]
-pub async fn info(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
+pub async fn info() -> impl Responder {
     info!("Processing request on root path");
 
-    let html_content = r#"
+    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+    const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const PKG_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
+
+    let html_content = format!(
+        r#"
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mega Uploader Auth - API Info</title>
+        <title>{} - API Info</title>
         <style>
-            * {
+            * {{
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
-            }
-            body {
+            }}
+            body {{
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 min-height: 100vh;
@@ -27,8 +31,8 @@ pub async fn info(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
                 justify-content: center;
                 align-items: center;
                 padding: 20px;
-            }
-            .container {
+            }}
+            .container {{
                 background: white;
                 border-radius: 20px;
                 box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -36,56 +40,56 @@ pub async fn info(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
                 width: 100%;
                 overflow: hidden;
                 animation: slideIn 0.5s ease-out;
-            }
-            @keyframes slideIn {
-                from {
+            }}
+            @keyframes slideIn {{
+                from {{
                     opacity: 0;
                     transform: translateY(-30px);
-                }
-                to {
+                }}
+                to {{
                     opacity: 1;
                     transform: translateY(0);
-                }
-            }
-            .header {
+                }}
+            }}
+            .header {{
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 padding: 40px;
                 text-align: center;
-            }
-            .header h1 {
+            }}
+            .header h1 {{
                 font-size: 2.5em;
                 margin-bottom: 10px;
-            }
-            .header p {
+            }}
+            .header p {{
                 opacity: 0.9;
                 font-size: 1.1em;
-            }
-            .content {
+            }}
+            .content {{
                 padding: 40px;
-            }
-            .info-section {
+            }}
+            .info-section {{
                 margin-bottom: 30px;
-            }
-            .info-section h2 {
+            }}
+            .info-section h2 {{
                 color: #667eea;
                 margin-bottom: 15px;
                 font-size: 1.5em;
                 border-left: 4px solid #667eea;
                 padding-left: 15px;
-            }
-            .api-card {
+            }}
+            .api-card {{
                 background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
                 border-radius: 10px;
                 padding: 20px;
                 margin-bottom: 15px;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
-            }
-            .api-card:hover {
+            }}
+            .api-card:hover {{
                 transform: translateY(-5px);
                 box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            }
-            .endpoint {
+            }}
+            .endpoint {{
                 font-family: 'Courier New', monospace;
                 background: #667eea;
                 color: white;
@@ -94,41 +98,41 @@ pub async fn info(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
                 display: inline-block;
                 font-weight: bold;
                 margin-bottom: 10px;
-            }
-            .description {
+            }}
+            .description {{
                 color: #333;
                 line-height: 1.6;
-            }
-            .badge {
+            }}
+            .badge {{
                 display: inline-block;
                 padding: 5px 15px;
                 border-radius: 20px;
                 font-size: 0.9em;
                 margin: 5px;
-            }
-            .badge-version {
+            }}
+            .badge-version {{
                 background: #48bb78;
                 color: white;
-            }
-            .badge-db {
+            }}
+            .badge-db {{
                 background: #ed8936;
                 color: white;
-            }
-            .footer {
+            }}
+            .footer {{
                 background: #f7fafc;
                 padding: 20px;
                 text-align: center;
                 color: #718096;
-            }
+            }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🚀 Mega Uploader Auth</h1>
-                <p>Authentication & API Management System</p>
+                <h1>🚀 {}</h1>
+                <p>{}</p>
                 <div style="margin-top: 20px;">
-                    <span class="badge badge-version">v0.1.0</span>
+                    <span class="badge badge-version">v{}</span>
                     <span class="badge badge-db">Redis + BB8</span>
                 </div>
             </div>
@@ -160,12 +164,14 @@ pub async fn info(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
             </div>
             
             <div class="footer">
-                <p>Built with ❤️ using Rust</p>
+                <p>Powered by DPAAS | <a href="https://dpaasglint.com/" target="_blank" style="color: #667eea; text-decoration: none;">DPAAS</a></p>
             </div>
         </div>
     </body>
     </html>
-    "#;
+    "#,
+        PKG_NAME, PKG_NAME, PKG_DESCRIPTION, PKG_VERSION
+    );
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")

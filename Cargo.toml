@@ -2,6 +2,7 @@
 name = "mega-uploader-auth"
 version = "0.1.0"
 edition = "2024"
+description = "An authentication service for Mega Uploader"
 
 [dependencies]
 actix-web = "4"
