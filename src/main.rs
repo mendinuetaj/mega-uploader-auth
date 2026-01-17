@@ -14,12 +14,12 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // Parse CLI arguments or Environment Variables
-    let args = config::Args::parse();
+    let args = config::AppArgs::parse();
 
-    info!("Connecting to Redis at {}", args.redis_url);
+    info!("Connecting to Redis at {}", args.redis.url);
 
     // Create the Redis connection pool
-    let redis_pool = match db::create_pool(&args.redis_url).await {
+    let redis_pool = match db::create_pool(&args.redis.url).await {
         Ok(pool) => {
             info!("Redis pool created successfully");
             pool
@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    info!("Starting server at http://{}", args.server_addr);
+    info!("Starting server at http://{}", args.server.addr);
 
     let pool_data = web::Data::new(redis_pool);
 
@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .configure(routes::config)
     })
-        .bind(&args.server_addr)?
+        .bind(&args.server.addr)?
         .run()
         .await
 }
