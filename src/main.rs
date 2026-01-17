@@ -26,7 +26,6 @@ async fn main() -> std::io::Result<()> {
     
     info!("Conectando a Redis en {}", redis_url);
     
-    // Crear el pool de conexiones Redis
     let redis_pool = match db::create_pool(&redis_url).await {
         Ok(pool) => {
             info!("Pool de Redis creado con éxito");

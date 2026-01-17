@@ -24,7 +24,7 @@ pub async fn set_key(pool: &RedisPool, key: &str, value: &str) -> Result<(), Red
     conn.set(key, value).await
 }
 
-pub async fn get_key(pool: &RedisPool, key: &str) -> Result<Option<String>, RedisError> {
+pub async fn _get_key(pool: &RedisPool, key: &str) -> Result<Option<String>, RedisError> {
     let mut conn = get_conn(pool).await?;
     conn.get(key).await
 }
