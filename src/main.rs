@@ -1,33 +1,11 @@
-use actix_web::{get, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use clap::Parser;
 use log::{error, info};
 
+mod config;
 mod db;
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// URL de conexión a Redis
-    #[arg(short, long, env = "REDIS_URL", default_value = "redis://127.0.0.1:6379")]
-    redis_url: String,
-
-    /// Dirección del servidor HTTP
-    #[arg(short, long, env = "SERVER_ADDR", default_value = "127.0.0.1:8080")]
-    server_addr: String,
-}
-
-#[get("/")]
-async fn hello(redis_pool: web::Data<db::RedisPool>) -> impl Responder {
-    info!("Procesando solicitud en la ruta raíz");
-    
-    // Ejemplo de uso de Redis: Guardar y obtener una clave
-    match db::set_key(&redis_pool, "ultima_visita", "ahora").await {
-        Ok(_) => info!("Clave 'ultima_visita' actualizada en Redis"),
-        Err(e) => error!("Error escribiendo en Redis: {}", e),
-    }
-
-    HttpResponse::Ok().body("¡Hola desde Actix Web con Redis!")
-}
+mod handlers;
+mod routes;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,7 +13,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // Parsear argumentos de CLI o Variables de Entorno
-    let args = Args::parse();
+    let args = config::Args::parse();
 
     info!("Conectando a Redis en {}", args.redis_url);
 
@@ -59,7 +37,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(pool_data.clone())
             .wrap(Logger::default())
-            .service(hello)
+            .configure(routes::config)
     })
         .bind(&args.server_addr)?
         .run()
