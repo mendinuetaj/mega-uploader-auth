@@ -20,3 +20,21 @@ pub struct CliAuthState {
     pub cli_version: Option<String>,
     pub created_at: i64,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct TokenResponse {
+    pub access_token: String,
+    pub id_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_in: u64,
+    pub token_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdTokenClaims {
+    pub sub: String,
+    pub email: Option<String>,
+    pub iss: String,
+    pub aud: String,
+    pub exp: usize,
+}

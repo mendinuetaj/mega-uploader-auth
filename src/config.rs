@@ -16,7 +16,12 @@ pub struct AppArgs {
 #[derive(Args, Debug, Clone)]
 pub struct RedisConfig {
     /// Redis connection URL
-    #[arg(short, long, env = "REDIS_URL", default_value = "redis://127.0.0.1:6379")]
+    #[arg(
+        short,
+        long,
+        env = "REDIS_URL",
+        default_value = "redis://127.0.0.1:6379"
+    )]
     pub url: String,
 }
 
@@ -75,4 +80,12 @@ pub struct CognitoConfig {
     /// OAuth redirect URI
     #[arg(long, env = "COGNITO_REDIRECT_URI")]
     pub redirect_uri: String,
+
+    /// Cognito User Pool ID (e.g., us-east-1_XXXXXXXXX)
+    #[arg(long, env = "COGNITO_USER_POOL_ID")]
+    pub user_pool_id: String,
+
+    /// Cognito Region (e.g., us-east-1)
+    #[arg(long, env = "COGNITO_REGION")]
+    pub region: String,
 }
