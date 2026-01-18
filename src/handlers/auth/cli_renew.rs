@@ -56,8 +56,13 @@ pub async fn auth_cli_renew(
 
     // 3. Cargar sesión de Redis usando el 'sub' (identificador único de usuario)
     let session = match load_session(&claims.sub, &redis_pool).await {
-        Some(s) if s.active => s,
-        _ => return HttpResponse::Unauthorized().body("Session not found or inactive"),
+        Some(s) => {
+            if !s.active {
+                return HttpResponse::Ok().json(CliAuthResponse::DENIED);
+            }
+            s
+        }
+        None => return HttpResponse::Ok().json(CliAuthResponse::EXPIRED),
     };
 
     // 4. Generar credenciales de AWS STS

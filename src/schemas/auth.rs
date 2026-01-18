@@ -49,12 +49,6 @@ pub struct CliRenewRequest {
     pub refresh_token: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RefreshClaims {
-    pub sub: String,
-    pub session_id: String,
-    pub exp: usize,
-}
 
 #[derive(Serialize)]
 #[serde(tag = "status")]

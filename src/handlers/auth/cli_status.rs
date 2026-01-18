@@ -1,7 +1,7 @@
 use crate::config::AppArgs;
 use crate::db::{redis_del, redis_get, RedisPool};
-use crate::handlers::auth::utils::get_cli_session_key;
-use crate::schemas::auth::{CliAuthResponse, CliStatusQuery};
+use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key};
+use crate::schemas::auth::{CliAuthResponse, CliAuthState, CliStatusQuery};
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,19 @@ pub async fn auth_cli_status(
 
     let sub = match user_sub {
         Some(s) => s,
-        None => return HttpResponse::Ok().json(CliAuthResponse::PENDING),
+        None => {
+            let initial_state_key = get_cli_state_key(&query.state);
+            let initial_state: Option<CliAuthState> = match redis_get(&redis_pool, &initial_state_key).await
+            {
+                Ok(data) => data,
+                Err(_) => return HttpResponse::InternalServerError().finish(),
+            };
+
+            if initial_state.is_none() {
+                return HttpResponse::Ok().json(CliAuthResponse::EXPIRED);
+            }
+            return HttpResponse::Ok().json(CliAuthResponse::PENDING);
+        }
     };
 
     // 2. Obtener la sesión real usando el sub
@@ -47,8 +59,13 @@ pub async fn auth_cli_status(
     };
 
     let session = match session_data {
-        Some(s) => s,
-        None => return HttpResponse::Ok().json(CliAuthResponse::PENDING),
+        Some(s) => {
+            if !s.active {
+                return HttpResponse::Ok().json(CliAuthResponse::DENIED);
+            }
+            s
+        }
+        None => return HttpResponse::Ok().json(CliAuthResponse::EXPIRED),
     };
 
     let role_session_name = format!("cli-{}", session.user_sub)
