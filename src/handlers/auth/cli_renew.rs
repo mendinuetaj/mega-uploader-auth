@@ -2,7 +2,7 @@ use crate::config::AppArgs;
 use crate::db::{redis_get, RedisPool};
 use crate::handlers::auth::cli_status::CliSessionData;
 use crate::handlers::auth::utils::get_cli_session_key;
-use crate::schemas::auth::{CliAuthResponse, CliRenewRequest, IdTokenClaims};
+use crate::schemas::auth::{CliAuthResponse, CliRenewRequest, IdTokenClaims, TokenResponse};
 use actix_web::{post, web, HttpResponse, Responder};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
 
@@ -13,63 +13,54 @@ pub async fn auth_cli_renew(
     redis_pool: web::Data<RedisPool>,
     config: web::Data<AppArgs>,
 ) -> impl Responder {
-
-    // 1. Validar el token contra JWKS
-    // NOTA: Los Refresh Tokens de Cognito NO son JWTs, son opacos.
-    // El error "Invalid token header" ocurre porque estamos intentando decodificarlo como JWT.
-    // Si el usuario quiere validarlo contra JWKS, el CLI debe enviar el ID Token en su lugar,
-    // o debemos manejar el caso donde el token es opaco.
-
-    let claims = match decode_header(&body.refresh_token) {
-        Ok(header) => {
-            let jwks = match fetch_jwks(&config).await {
-                Ok(j) => j,
-                Err(_) => return HttpResponse::InternalServerError().body("Failed to fetch JWKS"),
-            };
-
-            let kid = match header.kid {
-                Some(k) => k,
-                None => return HttpResponse::Unauthorized().body("Token missing kid"),
-            };
-
-            let jwk = match jwks.find(&kid) {
-                Some(j) => j,
-                None => return HttpResponse::Unauthorized().body("Key not found"),
-            };
-
-            let decoding_key = match DecodingKey::from_jwk(jwk) {
-                Ok(d) => d,
-                Err(_) => return HttpResponse::InternalServerError().finish(),
-            };
-
-            match validate_token(&body.refresh_token, &config, &decoding_key) {
-                Ok(c) => Some(c),
-                Err(e) => {
-                    log::error!("Token validation error: {}", e);
-                    return HttpResponse::Unauthorized().body("Invalid token");
-                }
-            }
-        },
-        Err(_) => {
-            // Si no es un JWT, pero es un refresh token válido para Cognito, 
-            // no podemos validarlo contra JWKS localmente.
-            // Para satisfacer la petición del usuario de "validar contra JWKS", 
-            // el CLI debe proporcionar un JWT (ID/Access Token).
-            None
+    // 1. Intercambiar el refresh_token de Cognito por nuevos tokens (id_token, access_token)
+    // Esto valida automáticamente que el refresh_token sea válido y no haya sido revocado en Cognito.
+    let token_res = match refresh_cognito_tokens(&body.refresh_token, &config).await {
+        Ok(res) => res,
+        Err(e) => {
+            log::error!("Error refreshing Cognito tokens: {}", e);
+            return HttpResponse::Unauthorized().body("Invalid or expired refresh token");
         }
     };
 
-    let sub = match claims {
-        Some(c) => c.sub,
-        None => return HttpResponse::Unauthorized().body("Invalid refresh token format: Cognito Refresh Tokens are opaque and cannot be validated against JWKS. Please provide an ID Token or Access Token if JWT validation is required."),
+    // 2. Validar el nuevo ID Token contra las JWKS para asegurar la identidad
+    let jwks = match fetch_jwks(&config).await {
+        Ok(j) => j,
+        Err(_) => return HttpResponse::InternalServerError().body("Failed to fetch JWKS"),
     };
 
-    let session = match load_session(&sub, &redis_pool).await {
+    let header = match decode_header(&token_res.id_token) {
+        Ok(h) => h,
+        Err(_) => return HttpResponse::Unauthorized().body("Invalid ID token header from Cognito"),
+    };
+
+    let kid = match header.kid {
+        Some(k) => k,
+        None => return HttpResponse::Unauthorized().body("ID token missing kid"),
+    };
+
+    let jwk = match jwks.find(&kid) {
+        Some(j) => j,
+        None => return HttpResponse::Unauthorized().body("Key not found in JWKS"),
+    };
+
+    let decoding_key = match DecodingKey::from_jwk(jwk) {
+        Ok(d) => d,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let claims = match validate_token(&token_res.id_token, &config, &decoding_key) {
+        Ok(c) => c,
+        Err(_) => return HttpResponse::Unauthorized().body("Invalid ID token claims"),
+    };
+
+    // 3. Cargar sesión de Redis usando el 'sub' (identificador único de usuario)
+    let session = match load_session(&claims.sub, &redis_pool).await {
         Some(s) if s.active => s,
-        _ => return HttpResponse::Unauthorized().body("Session expired or not found"),
+        _ => return HttpResponse::Unauthorized().body("Session not found or inactive"),
     };
 
-    // 3. Generar role session name
+    // 4. Generar credenciales de AWS STS
     let role_session_name = format!("cli-{}", session.user_sub)
         .chars()
         .filter(|c| {
@@ -84,7 +75,6 @@ pub async fn auth_cli_renew(
         .take(64)
         .collect::<String>();
 
-    // 4. AssumeRole
     let creds = match sts_client
         .assume_role()
         .role_arn(&config.sts.role_arn)
@@ -103,12 +93,58 @@ pub async fn auth_cli_renew(
         }
     };
 
+    // Si Cognito no devuelve un nuevo refresh_token (lo cual es normal a menos que haya rotación),
+    // mantenemos el que ya teníamos.
+    let next_refresh_token = token_res.refresh_token.unwrap_or_else(|| body.refresh_token.clone());
+
     HttpResponse::Ok().json(CliAuthResponse::AUTHORIZED {
         access_key_id: creds.access_key_id().to_string(),
         secret_access_key: creds.secret_access_key().to_string(),
         session_token: creds.session_token().to_string(),
         expires_at: creds.expiration().secs(),
-        refresh_token: Some(body.refresh_token.clone()),
+        refresh_token: Some(next_refresh_token),
+    })
+}
+
+async fn refresh_cognito_tokens(
+    refresh_token: &str,
+    config: &AppArgs,
+) -> Result<TokenResponse, actix_web::Error> {
+    let client = reqwest::Client::new();
+    let params = [
+        ("grant_type", "refresh_token"),
+        ("client_id", &config.cognito.client_id),
+        ("refresh_token", refresh_token),
+    ];
+
+    let res = client
+        .post(format!(
+            "{}/oauth2/token",
+            config.cognito.domain.trim_end_matches('/')
+        ))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .form(&params)
+        .send()
+        .await
+        .map_err(|e| {
+            log::error!("Token refresh request error: {}", e);
+            actix_web::error::ErrorBadGateway("Cognito token endpoint error")
+        })?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let error_body = res.text().await.unwrap_or_default();
+        log::error!(
+            "Cognito token refresh failed: status={}, body={}",
+            status,
+            error_body
+        );
+        return Err(actix_web::error::ErrorUnauthorized("Invalid refresh token"));
+    }
+
+    res.json::<TokenResponse>().await.map_err(|e| {
+        log::error!("JSON parse error during token refresh: {}", e);
+        actix_web::error::ErrorBadGateway("Invalid token response from Cognito")
     })
 }
 
