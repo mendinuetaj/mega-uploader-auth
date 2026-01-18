@@ -46,7 +46,14 @@ pub struct CliStatusQuery {
 
 #[derive(Deserialize)]
 pub struct CliRenewRequest {
-    pub role_session_name: String,
+    pub refresh_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RefreshClaims {
+    pub sub: String,
+    pub session_id: String,
+    pub exp: usize,
 }
 
 #[derive(Serialize)]
@@ -60,8 +67,5 @@ pub enum CliAuthResponse {
         secret_access_key: String,
         session_token: String,
         expires_at: i64,
-        role_session_name: String,
     },
 }
-
-

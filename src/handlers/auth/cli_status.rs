@@ -5,11 +5,17 @@ use crate::schemas::auth::{CliAuthResponse, CliStatusQuery};
 use actix_web::{get, web, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-struct CliSessionData {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CliSessionData {
     pub user_sub: String,
     pub email: Option<String>,
     pub device_name: Option<String>,
+    #[serde(default = "default_active")]
+    pub active: bool,
+}
+
+fn default_active() -> bool {
+    true
 }
 
 #[get("/auth/cli/status")]
@@ -73,6 +79,5 @@ pub async fn auth_cli_status(
         secret_access_key: creds.secret_access_key().to_string(),
         session_token: creds.session_token().to_string(),
         expires_at: creds.expiration().secs(),
-        role_session_name,
     })
 }
