@@ -7,6 +7,7 @@ mod db;
 mod handlers;
 mod routes;
 mod schemas;
+mod utils;
 
 /// Entry point of the Mega Uploader Auth application.
 ///
@@ -15,6 +16,9 @@ mod schemas;
 /// the Actix Web HTTP server.
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Print the application banner
+    utils::banner::print_banner();
+
     // Initialize the logger
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
