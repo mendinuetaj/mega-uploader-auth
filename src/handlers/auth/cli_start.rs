@@ -1,15 +1,15 @@
 use crate::config::AppArgs;
-use crate::handlers::auth::utils::{get_cli_state_key, get_redis_conn};
+use crate::db::{redis_set_ex, RedisPool};
+use crate::handlers::auth::utils::get_cli_state_key;
 use crate::schemas::auth::{CliAuthStartRequest, CliAuthStartResponse, CliAuthState};
 use actix_web::{post, web, HttpResponse, Result};
-use redis::AsyncCommands;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 #[post("/auth/cli/start")]
 pub async fn auth_cli_start(
     payload: web::Json<CliAuthStartRequest>,
-    redis_pool: web::Data<crate::db::RedisPool>,
+    redis_pool: web::Data<RedisPool>,
     config: web::Data<AppArgs>,
 ) -> Result<HttpResponse> {
     let state = Uuid::new_v4().to_string();
@@ -28,16 +28,7 @@ pub async fn auth_cli_start(
     };
 
     let key = get_cli_state_key(&state);
-    let mut conn = get_redis_conn(&redis_pool).await?;
-
-    let value = serde_json::to_string(&auth_state)?;
-
-    conn.set_ex::<&str, String, ()>(&key, value, ttl_seconds as u64)
-        .await
-        .map_err(|e| {
-            log::error!("Redis set_ex error: {}", e);
-            actix_web::error::ErrorInternalServerError("Failed to store session")
-        })?;
+    redis_set_ex(&redis_pool, &key, &auth_state, ttl_seconds as u64).await?;
 
     let auth_url = format!(
         "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid+email+profile&state={}",

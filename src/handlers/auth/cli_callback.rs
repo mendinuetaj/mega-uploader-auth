@@ -1,9 +1,9 @@
 use crate::config::AppArgs;
-use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key, get_redis_conn};
+use crate::db::{redis_del, redis_get, redis_set_ex, RedisPool};
+use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key};
 use crate::schemas::auth::{CliAuthState, IdTokenClaims, TokenResponse};
 use actix_web::{get, web, HttpResponse, Result};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
-use redis::AsyncCommands;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -15,7 +15,7 @@ pub struct AuthCallbackQuery {
 #[get("/auth/cli/callback")]
 pub async fn auth_cli_callback(
     query: web::Query<AuthCallbackQuery>,
-    redis_pool: web::Data<crate::db::RedisPool>,
+    redis_pool: web::Data<RedisPool>,
     config: web::Data<AppArgs>,
 ) -> Result<HttpResponse> {
     let token_res = exchange_code_for_tokens(&query.code, &config).await?;
@@ -67,13 +67,11 @@ async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, actix_web::Error> {
 }
 
 async fn mark_cli_authenticated(
-    redis_pool: &crate::db::RedisPool,
+    redis_pool: &RedisPool,
     state: &str,
     claims: &IdTokenClaims,
     auth_state: &CliAuthState,
 ) -> Result<(), actix_web::Error> {
-    let mut conn = get_redis_conn(redis_pool).await?;
-
     let key = get_cli_session_key(state);
 
     let value = serde_json::json!({
@@ -82,13 +80,7 @@ async fn mark_cli_authenticated(
         "device_name": auth_state.device_name
     });
 
-    conn.set_ex::<String, String, ()>(key, value.to_string(), 600)
-        .await
-        .map_err(|e| {
-            log::error!("Redis set_ex error: {}", e);
-            actix_web::error::ErrorInternalServerError("Failed to store session")
-        })?;
-    Ok(())
+    redis_set_ex(redis_pool, &key, &value, 600).await
 }
 
 fn validate_id_token(
@@ -109,28 +101,18 @@ fn validate_id_token(
 }
 
 async fn load_and_consume_state(
-    redis_pool: &crate::db::RedisPool,
+    redis_pool: &RedisPool,
     state: &str,
 ) -> Result<CliAuthState, actix_web::Error> {
-    let mut conn = get_redis_conn(redis_pool).await?;
-
     let key = get_cli_state_key(state);
 
-    let value: Option<String> = conn.get(&key).await.map_err(|e| {
-        log::error!("Redis get error: {}", e);
-        actix_web::error::ErrorInternalServerError("Redis error")
-    })?;
+    let auth_state: CliAuthState = redis_get(redis_pool, &key)
+        .await?
+        .ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid or expired state"))?;
 
-    let value =
-        value.ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid or expired state"))?;
+    redis_del(redis_pool, &key).await?;
 
-    let _: () = conn.del(&key).await.map_err(|e| {
-        log::error!("Redis del error: {}", e);
-        actix_web::error::ErrorInternalServerError("Redis error")
-    })?;
-
-    serde_json::from_str(&value)
-        .map_err(|_| actix_web::error::ErrorInternalServerError("Invalid state payload"))
+    Ok(auth_state)
 }
 
 async fn exchange_code_for_tokens(
