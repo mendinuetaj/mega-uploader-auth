@@ -8,6 +8,11 @@ mod handlers;
 mod routes;
 mod schemas;
 
+/// Entry point of the Mega Uploader Auth application.
+///
+/// This function initializes the logging system, parses configuration arguments,
+/// establishes a connection to Redis, sets up the AWS STS client, and starts
+/// the Actix Web HTTP server.
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize the logger

@@ -6,20 +6,26 @@ use actix_web::{post, web, HttpResponse, Result};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
+/// Handler to initiate the CLI authentication process.
+///
+/// This endpoint generates a unique state, stores the device information in Redis,
+/// and returns an authorization URL that the user must open in their browser.
 #[post("/auth/cli/start")]
 pub async fn auth_cli_start(
     payload: web::Json<CliAuthStartRequest>,
     redis_pool: web::Data<RedisPool>,
     config: web::Data<AppArgs>,
 ) -> Result<HttpResponse> {
+    // Generate a unique state for this authentication request
     let state = Uuid::new_v4().to_string();
-    let ttl_seconds = 300;
+    let ttl_seconds = 300; // 5 minutes expiration
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or_else(|_| 0);
 
+    // Prepare the state data to be stored in Redis
     let auth_state = CliAuthState {
         device_name: payload.device_name.clone(),
         os: payload.os.clone(),
@@ -27,9 +33,11 @@ pub async fn auth_cli_start(
         created_at: now,
     };
 
+    // Store the state in Redis with a TTL
     let key = get_cli_state_key(&state);
     redis_set_ex(&redis_pool, &key, &auth_state, ttl_seconds as u64).await?;
 
+    // Build the authorization URL for Cognito
     let auth_url = format!(
         "{}/oauth2/authorize?response_type=code&client_id={}&redirect_uri={}&scope=openid+email+profile&state={}",
         config.cognito.domain.trim_end_matches('/'),

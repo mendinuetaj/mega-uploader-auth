@@ -7,6 +7,10 @@ use crate::schemas::auth::{
 use actix_web::{post, web, HttpResponse, Responder};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
 
+/// Handler for CLI session renewal.
+///
+/// This endpoint allows a CLI client to exchange a Cognito refresh token for new
+/// credentials, including AWS STS temporary credentials.
 #[post("/auth/cli/renew")]
 pub async fn auth_cli_renew(
     body: web::Json<CliRenewRequest>,
@@ -14,8 +18,8 @@ pub async fn auth_cli_renew(
     redis_pool: web::Data<RedisPool>,
     config: web::Data<AppArgs>,
 ) -> impl Responder {
-    // 1. Intercambiar el refresh_token de Cognito por nuevos tokens (id_token, access_token)
-    // Esto valida automáticamente que el refresh_token sea válido y no haya sido revocado en Cognito.
+    // 1. Exchange the Cognito refresh_token for new tokens (id_token, access_token)
+    // This automatically validates that the refresh_token is valid and has not been revoked in Cognito.
     let token_res = match refresh_cognito_tokens(&body.refresh_token, &config).await {
         Ok(res) => res,
         Err(e) => {
@@ -24,7 +28,7 @@ pub async fn auth_cli_renew(
         }
     };
 
-    // 2. Validar el nuevo ID Token contra las JWKS para asegurar la identidad
+    // 2. Validate the new ID Token against JWKS to ensure identity
     let jwks = match fetch_jwks(&config).await {
         Ok(j) => j,
         Err(_) => return HttpResponse::InternalServerError().body("Failed to fetch JWKS"),
@@ -55,14 +59,14 @@ pub async fn auth_cli_renew(
         Err(_) => return HttpResponse::Unauthorized().body("Invalid ID token claims"),
     };
 
-    // 3. Cargar sesión de Redis usando el 'sub' (identificador único de usuario)
+    // 3. Load the session from Redis using the 'sub' (unique user identifier)
     let session_data = load_session(&claims.sub, &redis_pool).await;
     let session = match validate_cli_session(session_data) {
         Ok(s) => s,
         Err(res) => return res,
     };
 
-    // 4. Generar credenciales de AWS STS
+    // 4. Generate AWS STS temporary credentials
     let role_session_name = get_role_session_name(&session.user_sub);
 
     let creds = match sts_client
@@ -83,8 +87,8 @@ pub async fn auth_cli_renew(
         }
     };
 
-    // Si Cognito no devuelve un nuevo refresh_token (lo cual es normal a menos que haya rotación),
-    // mantenemos el que ya teníamos.
+    // If Cognito does not return a new refresh_token (normal unless rotation is enabled),
+    // we keep the existing one.
     let next_refresh_token = token_res.refresh_token.unwrap_or_else(|| body.refresh_token.clone());
 
     HttpResponse::Ok().json(CliAuthResponse::AUTHORIZED {
@@ -96,6 +100,7 @@ pub async fn auth_cli_renew(
     })
 }
 
+/// Exchanges a refresh token for new tokens using Cognito's OAuth2 endpoint.
 async fn refresh_cognito_tokens(
     refresh_token: &str,
     config: &AppArgs,
@@ -138,6 +143,7 @@ async fn refresh_cognito_tokens(
     })
 }
 
+/// Fetches the JSON Web Key Set (JWKS) from Cognito.
 async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, reqwest::Error> {
     let url = format!(
         "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json",
@@ -146,6 +152,7 @@ async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, reqwest::Error> {
     reqwest::get(url).await?.json::<JwkSet>().await
 }
 
+/// Validates an ID token against the identity provider's configuration.
 fn validate_token(
     token: &str,
     config: &AppArgs,
@@ -157,6 +164,7 @@ fn validate_token(
     Ok(token_data.claims)
 }
 
+/// Loads session data from Redis for a given user subject.
 async fn load_session(sub: &str, redis_pool: &RedisPool) -> Option<CliSessionData> {
     let key = get_cli_session_key(sub);
     redis_get::<CliSessionData>(redis_pool, &key).await.unwrap_or_else(|e| {

@@ -1,6 +1,9 @@
 use actix_web::{get, HttpResponse, Responder};
 use log::info;
 
+/// Handler for the root path that returns information about the API.
+///
+/// It renders a simple HTML page with the project name, version, and available endpoints.
 #[get("/")]
 pub async fn info() -> impl Responder {
     info!("Processing request on root path");
