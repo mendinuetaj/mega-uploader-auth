@@ -67,5 +67,6 @@ pub enum CliAuthResponse {
         secret_access_key: String,
         session_token: String,
         expires_at: i64,
+        refresh_token: Option<String>,
     },
 }

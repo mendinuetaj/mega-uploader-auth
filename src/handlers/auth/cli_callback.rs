@@ -42,7 +42,7 @@ pub async fn auth_cli_callback(
 
     let claims = validate_id_token(&token_res.id_token, &config, &decoding_key)?;
 
-    mark_cli_authenticated(&redis_pool, &query.state, &claims, &auth_state).await?;
+    mark_cli_authenticated(&redis_pool, &query.state, &claims, &auth_state, token_res.refresh_token).await?;
 
     Ok(HttpResponse::Ok().body("Authentication successful! You can now close this window."))
 }
@@ -71,13 +71,16 @@ async fn mark_cli_authenticated(
     state: &str,
     claims: &IdTokenClaims,
     auth_state: &CliAuthState,
+    refresh_token: Option<String>,
 ) -> Result<(), actix_web::Error> {
     let key = get_cli_session_key(state);
 
     let value = serde_json::json!({
         "user_sub": claims.sub,
         "email": claims.email,
-        "device_name": auth_state.device_name
+        "device_name": auth_state.device_name,
+        "refresh_token": refresh_token,
+        "active": true
     });
 
     redis_set_ex(redis_pool, &key, &value, 600).await
