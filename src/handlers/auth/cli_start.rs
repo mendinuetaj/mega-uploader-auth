@@ -1,4 +1,5 @@
 use crate::config::AppArgs;
+use crate::handlers::auth::utils::{get_cli_state_key, get_redis_conn};
 use crate::schemas::auth::{CliAuthStartRequest, CliAuthStartResponse, CliAuthState};
 use actix_web::{post, web, HttpResponse, Result};
 use redis::AsyncCommands;
@@ -26,11 +27,8 @@ pub async fn auth_cli_start(
         created_at: now,
     };
 
-    let key = format!("auth:cli:state:{}", state);
-    let mut conn = redis_pool.get().await.map_err(|e| {
-        log::error!("Failed to get redis connection: {}", e);
-        actix_web::error::ErrorInternalServerError("Database connection error")
-    })?;
+    let key = get_cli_state_key(&state);
+    let mut conn = get_redis_conn(&redis_pool).await?;
 
     let value = serde_json::to_string(&auth_state)?;
 

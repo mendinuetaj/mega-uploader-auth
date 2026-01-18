@@ -1,4 +1,5 @@
 use crate::config::AppArgs;
+use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key, get_redis_conn};
 use crate::schemas::auth::{CliAuthState, IdTokenClaims, TokenResponse};
 use actix_web::{get, web, HttpResponse, Result};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
@@ -71,12 +72,9 @@ async fn mark_cli_authenticated(
     claims: &IdTokenClaims,
     auth_state: &CliAuthState,
 ) -> Result<(), actix_web::Error> {
-    let mut conn = redis_pool.get().await.map_err(|e| {
-        log::error!("Failed to get redis connection: {}", e);
-        actix_web::error::ErrorInternalServerError("Database connection error")
-    })?;
+    let mut conn = get_redis_conn(redis_pool).await?;
 
-    let key = format!("auth:cli:session:{state}");
+    let key = get_cli_session_key(state);
 
     let value = serde_json::json!({
         "user_sub": claims.sub,
@@ -114,12 +112,9 @@ async fn load_and_consume_state(
     redis_pool: &crate::db::RedisPool,
     state: &str,
 ) -> Result<CliAuthState, actix_web::Error> {
-    let mut conn = redis_pool.get().await.map_err(|e| {
-        log::error!("Failed to get redis connection: {}", e);
-        actix_web::error::ErrorInternalServerError("Database connection error")
-    })?;
+    let mut conn = get_redis_conn(redis_pool).await?;
 
-    let key = format!("auth:cli:state:{}", state);
+    let key = get_cli_state_key(state);
 
     let value: Option<String> = conn.get(&key).await.map_err(|e| {
         log::error!("Redis get error: {}", e);
