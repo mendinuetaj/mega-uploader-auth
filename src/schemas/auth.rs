@@ -50,6 +50,20 @@ pub struct CliRenewRequest {
 }
 
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CliSessionData {
+    pub user_sub: String,
+    pub email: Option<String>,
+    pub device_name: Option<String>,
+    pub refresh_token: Option<String>,
+    #[serde(default = "default_active")]
+    pub active: bool,
+}
+
+fn default_active() -> bool {
+    true
+}
+
 #[derive(Serialize)]
 #[serde(tag = "status")]
 pub enum CliAuthResponse {

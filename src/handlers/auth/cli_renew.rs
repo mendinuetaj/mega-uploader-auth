@@ -1,8 +1,9 @@
 use crate::config::AppArgs;
 use crate::db::{redis_get, RedisPool};
-use crate::handlers::auth::cli_status::CliSessionData;
-use crate::handlers::auth::utils::get_cli_session_key;
-use crate::schemas::auth::{CliAuthResponse, CliRenewRequest, IdTokenClaims, TokenResponse};
+use crate::handlers::auth::utils::{get_cli_session_key, get_role_session_name, validate_cli_session};
+use crate::schemas::auth::{
+    CliAuthResponse, CliRenewRequest, CliSessionData, IdTokenClaims, TokenResponse,
+};
 use actix_web::{post, web, HttpResponse, Responder};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
 
@@ -55,30 +56,14 @@ pub async fn auth_cli_renew(
     };
 
     // 3. Cargar sesión de Redis usando el 'sub' (identificador único de usuario)
-    let session = match load_session(&claims.sub, &redis_pool).await {
-        Some(s) => {
-            if !s.active {
-                return HttpResponse::Ok().json(CliAuthResponse::DENIED);
-            }
-            s
-        }
-        None => return HttpResponse::Ok().json(CliAuthResponse::EXPIRED),
+    let session_data = load_session(&claims.sub, &redis_pool).await;
+    let session = match validate_cli_session(session_data) {
+        Ok(s) => s,
+        Err(res) => return res,
     };
 
     // 4. Generar credenciales de AWS STS
-    let role_session_name = format!("cli-{}", session.user_sub)
-        .chars()
-        .filter(|c| {
-            c.is_alphanumeric()
-                || *c == '='
-                || *c == ','
-                || *c == '.'
-                || *c == '@'
-                || *c == '-'
-                || *c == '_'
-        })
-        .take(64)
-        .collect::<String>();
+    let role_session_name = get_role_session_name(&session.user_sub);
 
     let creds = match sts_client
         .assume_role()

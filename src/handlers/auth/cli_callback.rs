@@ -1,7 +1,7 @@
 use crate::config::AppArgs;
 use crate::db::{redis_del, redis_get, redis_set_ex, RedisPool};
 use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key};
-use crate::schemas::auth::{CliAuthState, IdTokenClaims, TokenResponse};
+use crate::schemas::auth::{CliAuthState, CliSessionData, IdTokenClaims, TokenResponse};
 use actix_web::{get, web, HttpResponse, Result};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
 use serde::Deserialize;
@@ -75,13 +75,13 @@ async fn mark_cli_authenticated(
 ) -> Result<(), actix_web::Error> {
     // 1. Guardar la sesión principal indexada por 'sub' para que cli_renew la encuentre
     let session_key = get_cli_session_key(&claims.sub);
-    let session_value = serde_json::json!({
-        "user_sub": claims.sub,
-        "email": claims.email,
-        "device_name": auth_state.device_name,
-        "refresh_token": refresh_token,
-        "active": true
-    });
+    let session_value = CliSessionData {
+        user_sub: claims.sub.clone(),
+        email: claims.email.clone(),
+        device_name: auth_state.device_name.clone(),
+        refresh_token,
+        active: true,
+    };
 
     // Aumentamos el TTL a 30 días para permitir renovaciones a largo plazo
     redis_set_ex(redis_pool, &session_key, &session_value, 30 * 24 * 3600).await?;

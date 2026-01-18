@@ -1,23 +1,10 @@
 use crate::config::AppArgs;
 use crate::db::{redis_del, redis_get, RedisPool};
-use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key};
-use crate::schemas::auth::{CliAuthResponse, CliAuthState, CliStatusQuery};
+use crate::handlers::auth::utils::{
+    get_cli_session_key, get_cli_state_key, get_role_session_name, validate_cli_session,
+};
+use crate::schemas::auth::{CliAuthResponse, CliAuthState, CliSessionData, CliStatusQuery};
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct CliSessionData {
-    pub user_sub: String,
-    pub email: Option<String>,
-    pub device_name: Option<String>,
-    pub refresh_token: Option<String>,
-    #[serde(default = "default_active")]
-    pub active: bool,
-}
-
-fn default_active() -> bool {
-    true
-}
 
 #[get("/auth/cli/status")]
 pub async fn auth_cli_status(
@@ -58,29 +45,12 @@ pub async fn auth_cli_status(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let session = match session_data {
-        Some(s) => {
-            if !s.active {
-                return HttpResponse::Ok().json(CliAuthResponse::DENIED);
-            }
-            s
-        }
-        None => return HttpResponse::Ok().json(CliAuthResponse::EXPIRED),
+    let session = match validate_cli_session(session_data) {
+        Ok(s) => s,
+        Err(res) => return res,
     };
 
-    let role_session_name = format!("cli-{}", session.user_sub)
-        .chars()
-        .filter(|c| {
-            c.is_alphanumeric()
-                || *c == '='
-                || *c == ','
-                || *c == '.'
-                || *c == '@'
-                || *c == '-'
-                || *c == '_'
-        })
-        .take(64)
-        .collect::<String>();
+    let role_session_name = get_role_session_name(&session.user_sub);
 
     let creds = match sts_client
         .assume_role()
