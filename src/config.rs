@@ -63,4 +63,8 @@ pub struct StsConfig {
     /// AWS STS Role ARN for CLI clients
     #[arg(long, env = "STS_ROLE_ARN")]
     pub role_arn: String,
+
+    /// AWS STS External ID for CLI clients
+    #[arg(long, env = "STS_EXTERNAL_ID")]
+    pub external_id: Option<String>,
 }

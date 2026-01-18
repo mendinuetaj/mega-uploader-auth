@@ -49,6 +49,7 @@ pub async fn auth_cli_status(
         .assume_role()
         .role_arn(&config.sts.role_arn)
         .role_session_name(role_session_name)
+        .set_external_id(config.sts.external_id.clone())
         .send()
         .await
     {
