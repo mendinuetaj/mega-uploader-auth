@@ -83,11 +83,8 @@ fn validate_refresh_token(token: &str, _config: &AppArgs) -> Result<RefreshClaim
 
 async fn load_session(session_id: &str, redis_pool: &RedisPool) -> Option<CliSessionData> {
     let key = get_cli_session_key(session_id);
-    match redis_get::<CliSessionData>(redis_pool, &key).await {
-        Ok(data) => data,
-        Err(e) => {
-            log::error!("Error loading session from Redis: {}", e);
-            None
-        }
-    }
+    redis_get::<CliSessionData>(redis_pool, &key).await.unwrap_or_else(|e| {
+        log::error!("Error loading session from Redis: {}", e);
+        None
+    })
 }
