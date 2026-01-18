@@ -73,9 +73,9 @@ async fn mark_cli_authenticated(
     auth_state: &CliAuthState,
     refresh_token: Option<String>,
 ) -> Result<(), actix_web::Error> {
-    let key = get_cli_session_key(state);
-
-    let value = serde_json::json!({
+    // 1. Guardar la sesión principal indexada por 'sub' para que cli_renew la encuentre
+    let session_key = get_cli_session_key(&claims.sub);
+    let session_value = serde_json::json!({
         "user_sub": claims.sub,
         "email": claims.email,
         "device_name": auth_state.device_name,
@@ -83,7 +83,14 @@ async fn mark_cli_authenticated(
         "active": true
     });
 
-    redis_set_ex(redis_pool, &key, &value, 600).await
+    // Aumentamos el TTL a 30 días para permitir renovaciones a largo plazo
+    redis_set_ex(redis_pool, &session_key, &session_value, 30 * 24 * 3600).await?;
+
+    // 2. Crear un puntero temporal state -> sub para que cli_status encuentre la sesión
+    // Este puntero puede ser de corta duración (ej. 10 min)
+    let state_key = get_cli_session_key(state);
+    let state_value = serde_json::json!(claims.sub);
+    redis_set_ex(redis_pool, &state_key, &state_value, 600).await
 }
 
 fn validate_id_token(

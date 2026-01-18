@@ -26,9 +26,22 @@ pub async fn auth_cli_status(
     sts_client: web::Data<aws_sdk_sts::Client>,
     config: web::Data<AppArgs>,
 ) -> impl Responder {
-    let key = get_cli_session_key(&query.state);
+    let state_key = get_cli_session_key(&query.state);
 
-    let session_data: Option<CliSessionData> = match redis_get(&redis_pool, &key).await {
+    // 1. Intentar obtener el user_sub (el puntero guardado en el callback)
+    let user_sub: Option<String> = match redis_get(&redis_pool, &state_key).await {
+        Ok(data) => data,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    let sub = match user_sub {
+        Some(s) => s,
+        None => return HttpResponse::Ok().json(CliAuthResponse::PENDING),
+    };
+
+    // 2. Obtener la sesión real usando el sub
+    let session_key = get_cli_session_key(&sub);
+    let session_data: Option<CliSessionData> = match redis_get(&redis_pool, &session_key).await {
         Ok(data) => data,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -73,7 +86,8 @@ pub async fn auth_cli_status(
         }
     };
 
-    let _ = redis_del(&redis_pool, &key).await;
+    // Eliminamos solo el puntero temporal del estado
+    let _ = redis_del(&redis_pool, &state_key).await;
 
     HttpResponse::Ok().json(CliAuthResponse::AUTHORIZED {
         access_key_id: creds.access_key_id().to_string(),
