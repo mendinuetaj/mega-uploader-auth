@@ -30,15 +30,21 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    // Initialize AWS STS Client
+    let aws_config = aws_config::load_from_env().await;
+    let sts_client = aws_sdk_sts::Client::new(&aws_config);
+
     info!("Starting server at http://{}", args.server.addr);
 
     let pool_data = web::Data::new(redis_pool);
     let app_args_data = web::Data::new(args.clone());
+    let sts_data = web::Data::new(sts_client);
 
     HttpServer::new(move || {
         App::new()
             .app_data(pool_data.clone())
             .app_data(app_args_data.clone())
+            .app_data(sts_data.clone())
             .wrap(Logger::default())
             .configure(routes::config)
     })

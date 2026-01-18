@@ -11,6 +11,9 @@ pub struct AppArgs {
 
     #[command(flatten)]
     pub cognito: CognitoConfig,
+
+    #[command(flatten)]
+    pub sts: StsConfig,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -32,41 +35,6 @@ pub struct ServerConfig {
     pub addr: String,
 }
 
-/// ```rust
-/// /**
-///  * Configuration structure for AWS Cognito integration.
-///  *
-///  * This structure is used to define the necessary configuration details
-///  * required for interacting with AWS Cognito services. The structure
-///  * implements the `Args` and `Debug` traits to facilitate command-line
-///  * argument parsing and debugging support.
-///  *
-///  * # Fields
-///  *
-///  * - `domain`:
-///  *     The domain associated with the Cognito user pool. This is used as the
-///  *     base URL for authentication and other operations.
-///  *
-///  * - `client_id`:
-///  *     The client ID of your Cognito app. This is used to uniquely identify
-///  *     the application when interacting with the Cognito service.
-///  *
-///  * - `redirect_uri`:
-///  *     The redirect URI for the application. This URI is used during the
-///  *     OAuth2.0 authentication flow where users are redirected back to
-///  *     the application after successfully signing in or out.
-///  *
-///  * # Example
-///  *
-///  * ```
-///  * let config = CognitoConfig {
-///  *     domain: String::from("example.auth.us-east-1.amazoncognito.com"),
-///  *     client_id: String::from("abcd1234efgh5678ijkl9012mnop3456"),
-///  *     redirect_uri: String::from("https://example.com/callback"),
-///  * };
-///  * ```
-///  */
-/// ```
 #[derive(Args, Debug, Clone)]
 pub struct CognitoConfig {
     /// Cognito domain URL
@@ -88,4 +56,11 @@ pub struct CognitoConfig {
     /// Cognito Region (e.g., us-east-1)
     #[arg(long, env = "COGNITO_REGION")]
     pub region: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct StsConfig {
+    /// AWS STS Role ARN for CLI clients
+    #[arg(long, env = "STS_ROLE_ARN")]
+    pub role_arn: String,
 }

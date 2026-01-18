@@ -44,3 +44,18 @@ pub struct CliStatusQuery {
     pub state: String,
 }
 
+#[derive(Serialize)]
+#[serde(tag = "status")]
+pub enum CliAuthResponse {
+    PENDING,
+    EXPIRED,
+    DENIED,
+    AUTHORIZED {
+        access_key_id: String,
+        secret_access_key: String,
+        session_token: String,
+        expires_at: i64,
+    },
+}
+
+
