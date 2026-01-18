@@ -44,6 +44,11 @@ pub struct CliStatusQuery {
     pub state: String,
 }
 
+#[derive(Deserialize)]
+pub struct CliRenewRequest {
+    pub role_session_name: String,
+}
+
 #[derive(Serialize)]
 #[serde(tag = "status")]
 pub enum CliAuthResponse {
