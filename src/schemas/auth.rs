@@ -60,6 +60,7 @@ pub enum CliAuthResponse {
         secret_access_key: String,
         session_token: String,
         expires_at: i64,
+        role_session_name: String,
     },
 }
 

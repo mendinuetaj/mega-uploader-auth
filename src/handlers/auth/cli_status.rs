@@ -48,7 +48,7 @@ pub async fn auth_cli_status(
     let creds = match sts_client
         .assume_role()
         .role_arn(&config.sts.role_arn)
-        .role_session_name(role_session_name)
+        .role_session_name(role_session_name.clone())
         .set_external_id(config.sts.external_id.clone())
         .send()
         .await
@@ -73,5 +73,6 @@ pub async fn auth_cli_status(
         secret_access_key: creds.secret_access_key().to_string(),
         session_token: creds.session_token().to_string(),
         expires_at: creds.expiration().secs(),
+        role_session_name,
     })
 }
