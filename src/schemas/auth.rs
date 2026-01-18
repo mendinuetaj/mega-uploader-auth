@@ -38,3 +38,9 @@ pub struct IdTokenClaims {
     pub aud: String,
     pub exp: usize,
 }
+
+#[derive(Deserialize)]
+pub struct CliStatusQuery {
+    pub state: String,
+}
+
