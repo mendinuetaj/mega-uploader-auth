@@ -1,6 +1,8 @@
 use crate::config::AppArgs;
-use crate::db::{redis_get, RedisPool};
-use crate::handlers::auth::utils::{get_cli_session_key, get_role_session_name, validate_cli_session};
+use crate::db::{redis_get, redis_set_ex, RedisPool};
+use crate::handlers::auth::utils::{
+    get_cli_session_key, get_jwks_cache_key, get_role_session_name, validate_cli_session,
+};
 use crate::schemas::auth::{
     CliAuthResponse, CliRenewRequest, CliSessionData, IdTokenClaims, TokenResponse,
 };
@@ -29,7 +31,7 @@ pub async fn auth_cli_renew(
     };
 
     // 2. Validate the new ID Token against JWKS to ensure identity
-    let jwks = match fetch_jwks(&config).await {
+    let jwks = match fetch_jwks(&config, &redis_pool).await {
         Ok(j) => j,
         Err(_) => return HttpResponse::InternalServerError().body("Failed to fetch JWKS"),
     };
@@ -144,12 +146,36 @@ async fn refresh_cognito_tokens(
 }
 
 /// Fetches the JSON Web Key Set (JWKS) from Cognito.
-async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, reqwest::Error> {
+async fn fetch_jwks(config: &AppArgs, redis_pool: &RedisPool) -> Result<JwkSet, actix_web::Error> {
+    let cache_key = get_jwks_cache_key(&config.cognito.user_pool_id);
+
+    // Try to get from Redis first
+    if let Ok(Some(jwks)) = redis_get::<JwkSet>(redis_pool, &cache_key).await {
+        return Ok(jwks);
+    }
+
     let url = format!(
         "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json",
         config.cognito.region, config.cognito.user_pool_id
     );
-    reqwest::get(url).await?.json::<JwkSet>().await
+
+    let jwks = reqwest::get(url)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch JWKS: {}", e);
+            actix_web::error::ErrorInternalServerError("Failed to fetch identity provider keys")
+        })?
+        .json::<JwkSet>()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to parse JWKS: {}", e);
+            actix_web::error::ErrorInternalServerError("Failed to parse identity provider keys")
+        })?;
+
+    // Store in Redis with a 24-hour TTL
+    let _ = redis_set_ex(redis_pool, &cache_key, &jwks, 24 * 3600).await;
+
+    Ok(jwks)
 }
 
 /// Validates an ID token against the identity provider's configuration.

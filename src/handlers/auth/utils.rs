@@ -5,6 +5,8 @@ use actix_web::HttpResponse;
 pub const CLI_SESSION_KEY_PREFIX: &str = "auth:cli:session:";
 /// Prefix used for state keys in Redis.
 pub const CLI_STATE_KEY_PREFIX: &str = "auth:cli:state:";
+/// Prefix used for JWKS caching in Redis.
+pub const JWKS_CACHE_KEY_PREFIX: &str = "auth:jwks:";
 
 /// Returns the Redis key for a given CLI session or state pointer.
 pub fn get_cli_session_key(state: &str) -> String {
@@ -14,6 +16,11 @@ pub fn get_cli_session_key(state: &str) -> String {
 /// Returns the Redis key for a given CLI authentication state.
 pub fn get_cli_state_key(state: &str) -> String {
     format!("{}{}", CLI_STATE_KEY_PREFIX, state)
+}
+
+/// Returns the Redis key for a given Cognito User Pool JWKS.
+pub fn get_jwks_cache_key(user_pool_id: &str) -> String {
+    format!("{}{}", JWKS_CACHE_KEY_PREFIX, user_pool_id)
 }
 
 /// Validates the CLI session data and returns a corresponding HTTP response if invalid.

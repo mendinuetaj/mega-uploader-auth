@@ -1,6 +1,6 @@
 use crate::config::AppArgs;
 use crate::db::{redis_del, redis_get, redis_set_ex, RedisPool};
-use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key};
+use crate::handlers::auth::utils::{get_cli_session_key, get_cli_state_key, get_jwks_cache_key};
 use crate::schemas::auth::{CliAuthState, CliSessionData, IdTokenClaims, TokenResponse};
 use actix_web::{get, web, HttpResponse, Result};
 use jsonwebtoken::{decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
@@ -33,7 +33,7 @@ pub async fn auth_cli_callback(
     let auth_state = load_and_consume_state(&redis_pool, &query.state).await?;
 
     // Fetch JWKS to validate the ID token signature
-    let jwks = fetch_jwks(&config).await?;
+    let jwks = fetch_jwks(&config, &redis_pool).await?;
     let header = decode_header(&token_res.id_token).map_err(|e| {
         log::error!("Failed to decode token header: {}", e);
         actix_web::error::ErrorUnauthorized("Invalid token header")
@@ -62,7 +62,14 @@ pub async fn auth_cli_callback(
 }
 
 /// Fetches the JSON Web Key Set (JWKS) from the identity provider.
-async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, actix_web::Error> {
+async fn fetch_jwks(config: &AppArgs, redis_pool: &RedisPool) -> Result<JwkSet, actix_web::Error> {
+    let cache_key = get_jwks_cache_key(&config.cognito.user_pool_id);
+
+    // Try to get from Redis first
+    if let Ok(Some(jwks)) = redis_get::<JwkSet>(redis_pool, &cache_key).await {
+        return Ok(jwks);
+    }
+
     let url = format!(
         "https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json",
         config.cognito.region, config.cognito.user_pool_id
@@ -77,6 +84,9 @@ async fn fetch_jwks(config: &AppArgs) -> Result<JwkSet, actix_web::Error> {
         log::error!("Failed to parse JWKS: {}", e);
         actix_web::error::ErrorInternalServerError("Failed to parse identity provider keys")
     })?;
+
+    // Store in Redis with a 24-hour TTL
+    let _ = redis_set_ex(redis_pool, &cache_key, &jwks, 24 * 3600).await;
 
     Ok(jwks)
 }
