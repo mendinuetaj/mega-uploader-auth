@@ -151,6 +151,34 @@ pub async fn info() -> impl Responder {
                             Main interactive documentation endpoint.
                         </div>
                     </div>
+
+                    <div class="api-card">
+                        <div class="endpoint">POST /auth/cli/start</div>
+                        <div class="description">
+                            Initiates the CLI authentication process. Returns an authorization URL for the browser.
+                        </div>
+                    </div>
+
+                    <div class="api-card">
+                        <div class="endpoint">GET /auth/cli/callback</div>
+                        <div class="description">
+                            Callback endpoint for the identity provider. Handles token exchange and session creation.
+                        </div>
+                    </div>
+
+                    <div class="api-card">
+                        <div class="endpoint">GET /auth/cli/status</div>
+                        <div class="description">
+                            Polls the authentication status for a specific state. Returns AWS STS credentials if authorized.
+                        </div>
+                    </div>
+
+                    <div class="api-card">
+                        <div class="endpoint">POST /auth/cli/renew</div>
+                        <div class="description">
+                            Renews an expired CLI session using a refresh token to obtain new AWS STS credentials.
+                        </div>
+                    </div>
                 </div>
 
                 <div class="info-section">
