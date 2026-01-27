@@ -1,89 +1,87 @@
 # Mega Uploader Auth 🚀
 
-`mega-uploader-auth` es un servicio de autenticación diseñado para facilitar el flujo de inicio de sesión de
-aplicaciones CLI (Command Line Interface) utilizando **AWS Cognito** y **AWS STS** para proporcionar credenciales
-temporales de AWS.
+`mega-uploader-auth` is an authentication service designed to facilitate the login flow for CLI (Command Line Interface)
+applications using **AWS Cognito** and **AWS STS** to provide temporary AWS credentials.
 
-El servicio utiliza **Redis** para gestionar estados de autenticación temporales y sesiones, asegurando un flujo seguro
-y eficiente.
+The service uses **Redis** to manage temporary authentication states and sessions, ensuring a secure and efficient flow.
 
-## ✨ Características
+## ✨ Features
 
-- 🔐 **Integración con AWS Cognito**: Maneja el flujo de OAuth2 (Authorization Code Grant).
-- 🔑 **AWS STS (Security Token Service)**: Genera credenciales temporales (`AccessKeyId`, `SecretAccessKey`,
-  `SessionToken`) para los clientes.
-- 🔄 **Renovación de Sesión**: Soporta el uso de `refresh_token` para obtener nuevas credenciales sin re-autenticar al
-  usuario.
-- 🚀 **Alto Rendimiento**: Construido con **Rust** y **Actix Web**.
-- 📦 **Persistencia en Redis**: Gestión de sesiones y estados con TTL automático.
+- 🔐 **AWS Cognito Integration**: Handles the OAuth2 flow (Authorization Code Grant).
+- 🔑 **AWS STS (Security Token Service)**: Generates temporary credentials (`AccessKeyId`, `SecretAccessKey`,
+  `SessionToken`) for clients.
+- 🔄 **Session Renewal**: Supports the use of `refresh_token` to obtain new credentials without re-authenticating the
+  user.
+- 🚀 **High Performance**: Built with **Rust** and **Actix Web**.
+- 📦 **Redis Persistence**: Session and state management with automatic TTL.
 
-## 🛠️ Tecnologías
+## 🛠️ Technologies
 
-- **Lenguaje:** [Rust](https://www.rust-lang.org/) (Edición 2024)
+- **Language:** [Rust](https://www.rust-lang.org/) (2024 Edition)
 - **Web Framework:** [Actix Web 4](https://actix.rs/)
-- **Base de Datos:** [Redis](https://redis.io/) (con pool de conexiones `bb8`)
-- **AWS SDK:** `aws-sdk-sts` y `aws-config`
-- **Tokens:** `jsonwebtoken` para validación de ID Tokens de Cognito.
+- **Database:** [Redis](https://redis.io/) (with `bb8` connection pool)
+- **AWS SDK:** `aws-sdk-sts` and `aws-config`
+- **Tokens:** `jsonwebtoken` for Cognito ID Token validation.
 
-## ⚙️ Configuración
+## ⚙️ Configuration
 
-El servicio se puede configurar mediante variables de entorno o argumentos de línea de comandos (usando `clap`).
+The service can be configured via environment variables or command-line arguments (using `clap`).
 
-### Variables de Entorno Necesarias
+### Required Environment Variables
 
-| Variable               | Descripción                            | Ejemplo                                   |
-|------------------------|----------------------------------------|-------------------------------------------|
-| `REDIS_URL`            | URL de conexión a Redis                | `redis://127.0.0.1:6379`                  |
-| `SERVER_ADDR`          | Dirección y puerto del servidor        | `127.0.0.1:8080`                          |
-| `COGNITO_DOMAIN`       | Dominio de AWS Cognito                 | `https://auth.example.com`                |
-| `COGNITO_CLIENT_ID`    | Client ID de la App en Cognito         | `6h...`                                   |
-| `COGNITO_REDIRECT_URI` | URI de redirección (callback)          | `http://localhost:8080/auth/cli/callback` |
-| `COGNITO_USER_POOL_ID` | ID del User Pool de Cognito            | `us-east-1_XXXXX`                         |
-| `COGNITO_REGION`       | Región de AWS de Cognito               | `us-east-1`                               |
-| `STS_ROLE_ARN`         | ARN del Rol de IAM a asumir            | `arn:aws:iam::123456:role/CliRole`        |
-| `STS_EXTERNAL_ID`      | (Opcional) External ID para AssumeRole | `mi-id-externo`                           |
+| Variable               | Description                           | Example                                   |
+|------------------------|---------------------------------------|-------------------------------------------|
+| `REDIS_URL`            | Redis connection URL                  | `redis://127.0.0.1:6379`                  |
+| `SERVER_ADDR`          | Server address and port               | `127.0.0.1:8080`                          |
+| `COGNITO_DOMAIN`       | AWS Cognito domain                    | `https://auth.example.com`                |
+| `COGNITO_CLIENT_ID`    | Cognito App Client ID                 | `6h...`                                   |
+| `COGNITO_REDIRECT_URI` | Redirect URI (callback)               | `http://localhost:8080/auth/cli/callback` |
+| `COGNITO_USER_POOL_ID` | Cognito User Pool ID                  | `us-east-1_XXXXX`                         |
+| `COGNITO_REGION`       | AWS Cognito Region                    | `us-east-1`                               |
+| `STS_ROLE_ARN`         | IAM Role ARN to assume                | `arn:aws:iam::123456:role/CliRole`        |
+| `STS_EXTERNAL_ID`      | (Optional) External ID for AssumeRole | `my-external-id`                          |
 
-## 🚀 Instalación y Ejecución
+## 🚀 Installation and Execution
 
-### Requisitos previos
+### Prerequisites
 
-- Rust (última versión estable)
-- Redis corriendo localmente o en un contenedor.
+- Rust (latest stable version)
+- Redis running locally or in a container.
 
-### Pasos
+### Steps
 
-1. **Clonar el repositorio:**
+1. **Clone the repository:**
    ```bash
    git clone <repo-url>
    cd mega-uploader-auth
    ```
 
-2. **Configurar el entorno:**
-   Puedes crear un archivo `.env` o exportar las variables mencionadas arriba.
+2. **Configure the environment:**
+   You can create a `.env` file or export the variables mentioned above.
 
-3. **Compilar y ejecutar:**
+3. **Build and run:**
    ```bash
    cargo run --release
    ```
 
-El servidor estará disponible por defecto en `http://127.0.0.1:8080`.
+The server will be available by default at `http://127.0.0.1:8080`.
 
-## 📡 Endpoints de la API
+## 📡 API Endpoints
 
-### Información
+### Information
 
-- **`GET /`**: Devuelve una página informativa con el estado del servicio y los endpoints disponibles.
+- **`GET /`**: Returns an informative page with the service status and available endpoints.
 
-### Autenticación CLI
+### CLI Authentication
 
-1. **`POST /auth/cli/start`**: Inicia el proceso. El cliente envía información del dispositivo y recibe una URL de
-   autorización de Cognito.
-2. **`GET /auth/cli/callback`**: Endpoint donde Cognito redirige al usuario tras el login exitoso. Procesa el código y
-   guarda la sesión en Redis.
-3. **`GET /auth/cli/status?state=<uuid>`**: El cliente CLI hace polling aquí para verificar si el usuario completó el
-   login y obtener las credenciales de AWS STS.
-4. **`POST /auth/cli/renew`**: Permite al cliente renovar sus credenciales de AWS usando el `refresh_token` almacenado.
+1. **`POST /auth/cli/start`**: Initiates the process. The client sends device information and receives a Cognito
+   authorization URL.
+2. **`GET /auth/cli/callback`**: Endpoint where Cognito redirects the user after successful login. Processes the code
+   and saves the session in Redis.
+3. **`GET /auth/cli/status?state=<uuid>`**: The CLI client polls here to verify if the user completed the login and to
+   obtain AWS STS credentials.
+4. **`POST /auth/cli/renew`**: Allows the client to renew their AWS credentials using the stored `refresh_token`.
 
 ---
 
-Desarrollado por **DPAAS**.
+Developed by **DPAAS**.
