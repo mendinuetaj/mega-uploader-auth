@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mega-uploader-auth
+  namespace: mega-uploader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mega-uploader-auth
+  template:
+    metadata:
+      labels:
+        app: mega-uploader-auth
+    spec:
+      containers:
+        - name: mega-uploader-auth
+          image: ${DOCKERHUB_USER}/${DOCKER_IMAGE}:${DOCKER_TAG}
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: mega-uploader-config

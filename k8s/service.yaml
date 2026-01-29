@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mega-uploader-auth-svc
+  namespace: mega-uploader
+spec:
+  selector:
+    app: mega-uploader-auth
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080

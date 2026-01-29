@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mega-uploader-config
+  namespace: mega-uploader
+data:
+  COGNITO_CLIENT_ID: 5pgshmijcotuq03ur8d3sa73uk
+  COGNITO_DOMAIN: https://mega-upload-saas.auth.us-east-1.amazoncognito.com
+  COGNITO_REDIRECT_URI: http://localhost:8080/auth/cli/callback
+  COGNITO_REGION: us-east-1
+  COGNITO_USER_POOL_ID: us-east-1_MuSEs6gb1
+  SERVER_ADDR: 0.0.0.0:8080
+  STS_EXTERNAL_ID: dpaas-cli-auth
+  STS_ROLE_ARN: arn:aws:iam::318361291322:role/server-mega-upload-assumable-role
