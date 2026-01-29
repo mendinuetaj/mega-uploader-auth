@@ -8,7 +8,7 @@ RUN apk add --no-cache musl-dev openssl-dev pkgconfig
 WORKDIR /app
 
 # Copy dependency configuration files first to leverage Docker cache
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
 
 # Create a project skeleton to pre-compile dependencies
 RUN mkdir src && echo "fn main() {}" > src/main.rs
