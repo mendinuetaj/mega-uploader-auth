@@ -17,7 +17,7 @@ spec:
         - name: mega-uploader-auth
           image: ${DOCKERHUB_USER}/${DOCKER_IMAGE}:${DOCKER_TAG}
           ports:
-            - containerPort: 8080
+            - containerPort: 80
           envFrom:
             - configMapRef:
                 name: mega-uploader-config

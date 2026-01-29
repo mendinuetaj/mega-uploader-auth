@@ -26,24 +26,22 @@ pipeline {
 			steps {
 				container('docker') {
 					script {
-						echo "Building Docker image..."
-						sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+						echo "Building Docker image for multiple architectures..."
+						withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+							sh """
+							echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
+							docker buildx create --use || true
+							docker buildx build --platform linux/amd64,linux/arm64 \
+								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG} --push .
+							"""
+						}
 					}
 				}
 			}
 		}
 		stage('Push Docker Image') {
 			steps {
-				container('docker') {
-					echo "Pushing Docker image to Docker Hub..."
-					withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-						sh """
-						echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
-						docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
-						docker push \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG}
-					"""
-					}
-				}
+				echo "Skipping push as buildx already pushed the multi-arch image"
 			}
 		}
 		stage('Deploy to K8s') {
