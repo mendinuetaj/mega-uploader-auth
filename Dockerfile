@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.84-alpine AS builder
+FROM rust:1.93-alpine AS builder
 
 # Install build dependencies for packages that use C (like openssl)
 RUN apk add --no-cache musl-dev openssl-dev pkgconfig
