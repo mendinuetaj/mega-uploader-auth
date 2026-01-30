@@ -25,6 +25,16 @@ spec:
             - name: aws-creds
               mountPath: /root/.aws
               readOnly: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - orange-1
+                      - orange-2
       volumes:
         - name: aws-creds
           secret:
