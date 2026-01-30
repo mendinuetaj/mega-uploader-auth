@@ -21,3 +21,16 @@ spec:
           envFrom:
             - configMapRef:
                 name: mega-uploader-config
+          volumeMounts:
+            - name: aws-creds
+              mountPath: /root/.aws
+              readOnly: true
+      volumes:
+        - name: aws-creds
+          secret:
+            secretName: aws-credentials
+            items:
+              - key: credentials
+                path: credentials
+              - key: config
+                path: config

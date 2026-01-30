@@ -48,12 +48,15 @@ pipeline {
 			steps {
 				container('kubectl') {
 					withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-						script {
-							echo "Deploying to Kubernetes..."
-							sh "kubectl apply -f k8s/namespace.yaml"
-							sh "kubectl apply -f k8s/configmap.yaml"
-							sh "envsubst < k8s/deployment.yaml | kubectl apply -f -"
-							sh "kubectl apply -f k8s/service.yaml"
+						withAWS(credentials: 'aws_creds_megaupload_dpaas_account', region: 'us-east-1') {
+							script {
+								echo "Deploying to Kubernetes..."
+								sh "kubectl apply -f k8s/namespace.yaml"
+								sh "kubectl apply -f k8s/configmap.yaml"
+								sh "envsubst < k8s/aws-secret.yaml | kubectl apply -f -"
+								sh "envsubst < k8s/deployment.yaml | kubectl apply -f -"
+								sh "kubectl apply -f k8s/service.yaml"
+							}
 						}
 					}
 				}
