@@ -59,6 +59,7 @@ pipeline {
 								sh "envsubst < k8s/aws-secret.yaml | kubectl apply -f -"
 								sh "envsubst < k8s/deployment.yaml | kubectl apply -f -"
 								sh "kubectl apply -f k8s/service.yaml"
+								sh "kubectl apply -f k8s/ingress.yaml"
 							}
 						}
 					}
