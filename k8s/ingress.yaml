@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mega-uploader-auth-ingress
+  namespace: mega-uploader
+  annotations:
+    # Entrypoints de Traefik: HTTPS
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    # Forwarded headers para proxy (recomendado para aplicaciones Actix-web/Rust)
+    traefik.ingress.kubernetes.io/proxy-headers: "true"
+    traefik.ingress.kubernetes.io/forwarded-headers: "X-Forwarded-For,X-Forwarded-Proto"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mul-auth.dpaasglint.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mega-uploader-auth-svc
+                port:
+                  number: 80
