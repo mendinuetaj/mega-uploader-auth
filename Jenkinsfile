@@ -7,6 +7,8 @@ pipeline {
 		GIT_CREDENTIALS = 'github'
 		DOCKER_IMAGE = 'mega-uploader-auth'
 		DOCKER_TAG = "${env.GIT_TAG?:'latest'}"
+		PLATFORMS = "linux/arm64"
+		BUILDER = "multiarch-builder"
 	}
 	stages {
 		stage('Checkout') {
@@ -29,10 +31,24 @@ pipeline {
 						echo "Building Docker image for multiple architectures..."
 						withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
 							sh """
+							set -e
 							echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
-							docker buildx create --use || true
-							docker buildx build --platform linux/arm64 \
+
+							# Activate binfmt for cross-build (QEMU)
+							docker run --privileged --rm tonistiigi/binfmt --install all
+
+							# Create builder if it does not exist
+							if ! docker buildx inspect ${BUILDER} >/dev/null 2>&1; then
+								docker buildx create --name ${BUILDER} --driver docker-container --use
+							else
+								docker buildx use ${BUILDER}
+							fi
+
+							docker buildx inspect --bootstrap
+
+							docker buildx build --platform ${PLATFORMS} \
 								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG} \
+								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:latest \
 								--cache-from type=registry,ref=\$DOCKERHUB_USER/${DOCKER_IMAGE}:buildcache \
 								--cache-to type=registry,ref=\$DOCKERHUB_USER/${DOCKER_IMAGE}:buildcache,mode=max \
 								--push .
@@ -65,6 +81,23 @@ pipeline {
 					}
 				}
 			}
+		}
+	}
+	post {
+		always {
+			container('docker') {
+				sh '''
+				echo "🧹 Cleaning local Docker artifacts"
+				docker buildx prune -f || true
+				docker system prune -af || true
+				'''
+			}
+		}
+		success {
+			echo "✅ Multi-arch build completed successfully"
+		}
+		failure {
+			echo "❌ Build failed"
 		}
 	}
 }
