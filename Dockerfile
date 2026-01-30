@@ -6,13 +6,13 @@ WORKDIR /app
 
 FROM chef AS planner
 COPY . .
-RUN cargo chef prepare --recipe-json recipe.json
+RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Caching dependencies
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 # Build dependencies - this is the layer that will be cached
-RUN cargo chef cook --release --recipe-json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
 # Stage 3: Build application
 COPY . .
