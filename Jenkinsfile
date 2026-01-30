@@ -31,8 +31,11 @@ pipeline {
 							sh """
 							echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
 							docker buildx create --use || true
-							docker buildx build --platform linux/amd64,linux/arm64 \
-								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG} --push .
+							docker buildx build --platform linux/arm64 \
+								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG} \
+								--cache-from type=registry,ref=\$DOCKERHUB_USER/${DOCKER_IMAGE}:buildcache \
+								--cache-to type=registry,ref=\$DOCKERHUB_USER/${DOCKER_IMAGE}:buildcache,mode=max \
+								--push .
 							"""
 						}
 					}

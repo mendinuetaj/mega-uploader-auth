@@ -1,25 +1,22 @@
-# Build stage
-FROM rust:1.93-alpine AS builder
-
-# Install build dependencies for packages that use C (like openssl)
+# Stage 1: Planning
+FROM rust:1.93-alpine AS chef
 RUN apk add --no-cache musl-dev openssl-dev pkgconfig
-
-# Set the working directory
+RUN cargo install cargo-chef
 WORKDIR /app
 
-# Copy dependency configuration files first to leverage Docker cache
-COPY Cargo.toml ./
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-json recipe.json
 
-# Create a project skeleton to pre-compile dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release
-RUN rm -rf src
+# Stage 2: Caching dependencies
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the layer that will be cached
+RUN cargo chef cook --release --recipe-json recipe.json
 
-# Copy the actual source code
-COPY src ./src
-
-# Compile the actual application
-RUN touch src/main.rs && cargo build --release && cp target/release/mega-uploader-auth /app/mega-uploader-auth
+# Stage 3: Build application
+COPY . .
+RUN cargo build --release && cp target/release/mega-uploader-auth /app/mega-uploader-auth
 
 # Runtime stage
 FROM alpine:3.21
