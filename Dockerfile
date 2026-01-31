@@ -1,5 +1,5 @@
 # Stage 1: Planning
-FROM --platform=$BUILDPLATFORM rust:1.84-bookworm AS chef
+FROM --platform=$BUILDPLATFORM rust:1.92-bookworm AS chef
 RUN cargo install cargo-chef
 WORKDIR /app
 
