@@ -11,8 +11,8 @@ pipeline {
 		BUILDER = "multiarch-builder"
 	}
 	stages {
-		container('jnlp') {
-			stage('Checkout') {
+		stage('Checkout') {
+			container('jnlp') {
 				steps {
 					echo "Checking out..."
 					checkout([
@@ -22,10 +22,10 @@ pipeline {
 							url: env.GIT_REPO,
 							credentialsId: env.GIT_CREDENTIALS
 						]]
-					])
+					]
+					)
 				}
 			}
-
 		}
 		stage('Build & Push Docker Image') {
 			steps {
