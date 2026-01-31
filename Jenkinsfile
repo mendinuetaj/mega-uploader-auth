@@ -11,18 +11,21 @@ pipeline {
 		BUILDER = "multiarch-builder"
 	}
 	stages {
-		stage('Checkout') {
-			steps {
-				echo "Checking out..."
-				checkout([
-					$class: 'GitSCM',
-					branches: [[name: "*/${env.GIT_TAG?:'master'}"]],
-					userRemoteConfigs: [[
-						url: env.GIT_REPO,
-						credentialsId: env.GIT_CREDENTIALS
-					]]
-				])
+		container('jnlp') {
+			stage('Checkout') {
+				steps {
+					echo "Checking out..."
+					checkout([
+						$class: 'GitSCM',
+						branches: [[name: "*/${env.GIT_TAG?:'master'}"]],
+						userRemoteConfigs: [[
+							url: env.GIT_REPO,
+							credentialsId: env.GIT_CREDENTIALS
+						]]
+					])
+				}
 			}
+
 		}
 		stage('Build & Push Docker Image') {
 			steps {
