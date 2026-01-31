@@ -11,5 +11,5 @@ data:
   COGNITO_USER_POOL_ID: us-east-1_MuSEs6gb1
   SERVER_ADDR: 0.0.0.0:80
   STS_EXTERNAL_ID: serambiente-cli-auth
-  STS_ROLE_ARN: arn:aws:iam::318361291322:role/server-mega-upload-assumable-role
+  STS_ROLE_ARN: arn:aws:iam::898120500948:role/server-mega-upload-assumable-role
   REDIS_URL: redis://10.90.0.4:6379/0
