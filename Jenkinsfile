@@ -24,25 +24,25 @@ pipeline {
 				])
 			}
 		}
-		stage('Build Docker Image') {
+		stage('Build & Push Docker Image') {
 			steps {
 				container('docker') {
 					script {
-						echo "Building Docker image for multiple architectures..."
+						echo "Building and pushing multi-arch Docker image..."
 						withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
 							sh """
 							set -e
 							echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
 
-							# Create builder if it does not exist
+							# Setup Buildx
 							if ! docker buildx inspect ${BUILDER} >/dev/null 2>&1; then
 								docker buildx create --name ${BUILDER} --driver docker-container --use
 							else
 								docker buildx use ${BUILDER}
 							fi
-
 							docker buildx inspect --bootstrap
 
+							# Build and Push
 							docker buildx build --platform ${PLATFORMS} \
 								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:${DOCKER_TAG} \
 								-t \$DOCKERHUB_USER/${DOCKER_IMAGE}:latest \
@@ -53,11 +53,6 @@ pipeline {
 						}
 					}
 				}
-			}
-		}
-		stage('Push Docker Image') {
-			steps {
-				echo "Skipping push as buildx already pushed the multi-arch image"
 			}
 		}
 		stage('Deploy to K8s') {

@@ -1,12 +1,14 @@
 # Stage 1: Planning
 FROM --platform=$BUILDPLATFORM rust:1.92-bookworm AS chef
-RUN cargo install cargo-chef
+RUN cargo install cargo-chef && rustup target add aarch64-unknown-linux-gnu
 WORKDIR /app
 
-# Instalar cross-compilation toolchain para aarch64-unknown-linux-gnu
-RUN apt-get update && apt-get install -y \
+# Instalar herramientas de compilación cruzada y dependencias de sistema para arm64
+RUN dpkg --add-architecture arm64 && \
+    apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross \
+    libssl-dev:arm64 \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,14 +20,9 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
-# Habilitar arquitectura arm64 para instalar dependencias de cross-compilation (ej: openssl)
-RUN dpkg --add-architecture arm64 && \
-    apt-get update && \
-    apt-get install -y libssl-dev:arm64 && \
-    rm -rf /var/lib/apt/lists/*
-
-# Configurar variables de entorno para pkg-config y cargo para usar el linker de cross-compilation
-ENV PKG_CONFIG_PATH_aarch64_unknown_linux_gnu=/usr/lib/aarch64-linux-gnu/pkgconfig \
+# Configure environment for cross-compilation to arm64
+ENV PKG_CONFIG_ALLOW_CROSS=1 \
+    PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig \
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
     CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
     CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
