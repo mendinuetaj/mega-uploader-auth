@@ -34,9 +34,6 @@ pipeline {
 							set -e
 							echo \$DOCKERHUB_PASS | docker login -u \$DOCKERHUB_USER --password-stdin
 
-							# Activate binfmt for cross-build (QEMU)
-							docker run --privileged --rm tonistiigi/binfmt --install all
-
 							# Create builder if it does not exist
 							if ! docker buildx inspect ${BUILDER} >/dev/null 2>&1; then
 								docker buildx create --name ${BUILDER} --driver docker-container --use
