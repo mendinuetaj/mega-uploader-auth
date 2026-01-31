@@ -67,7 +67,7 @@ pipeline {
 			steps {
 				container('kubectl') {
 					withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-						withAWS(credentials: 'aws_creds_megaupload_dpaas_account', region: 'us-east-1') {
+						withAWS(credentials: 'aws_creds_megaupload_serambiente_account', region: 'us-east-1') {
 							script {
 								echo "Deploying to Kubernetes..."
 								sh "kubectl apply -f k8s/namespace.yaml"
