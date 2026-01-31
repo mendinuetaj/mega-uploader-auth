@@ -13,32 +13,25 @@ pipeline {
 	stages {
 		stage('Checkout') {
 			steps {
-				container('jnlp') {
-					echo "Checking out (manual git clone)..."
-					sh '''
-						set -e
-
-						REPO_DIR=mega-uploader-auth
-						BRANCH="${GIT_TAG:-master}"
-
-						echo "Cloning branch: $BRANCH"
-
-						rm -rf "$REPO_DIR"
-
-						git clone \
-						  --depth 1 \
-						  --branch "$BRANCH" \
-						  "$GIT_REPO" \
-						  "$REPO_DIR"
-
-						cd "$REPO_DIR"
-
-						git rev-parse --short HEAD
-					  '''
-				}
+				echo "Checking out..."
+				checkout([
+					$class: 'GitSCM',
+					branches: [[name: "*/${env.GIT_TAG?:'master'}"]],
+					userRemoteConfigs: [[
+						url: env.GIT_REPO,
+						credentialsId: env.GIT_CREDENTIALS
+					]],
+					extensions: [
+						[$class: 'CloneOption',
+							depth: 1,
+							shallow: true,
+							noTags: true,
+							timeout: 10
+						]
+					]
+				])
 			}
 		}
-
 		stage('Build & Push Docker Image') {
 			steps {
 				container('docker') {
