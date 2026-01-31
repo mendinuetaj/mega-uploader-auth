@@ -12,8 +12,8 @@ pipeline {
 	}
 	stages {
 		stage('Checkout') {
-			container('jnlp') {
-				steps {
+			steps {
+				container('jnlp') {
 					echo "Checking out..."
 					checkout([
 						$class: 'GitSCM',
@@ -21,9 +21,16 @@ pipeline {
 						userRemoteConfigs: [[
 							url: env.GIT_REPO,
 							credentialsId: env.GIT_CREDENTIALS
-						]]
-					]
-					)
+						]],
+						extensions: [
+							[$class: 'CloneOption',
+								depth: 1,
+								shallow: true,
+								noTags: true,
+								timeout: 10
+							]
+						]
+					])
 				}
 			}
 		}
